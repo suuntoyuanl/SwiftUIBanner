@@ -7,31 +7,36 @@
 
 import SwiftUI
 
-struct ContentView: View {
+struct BannerView: View {
     @State private var currentIndex = 0
     @GestureState private var dragOffset: CGFloat = 0
     @State private var isShowDetailView = false
+    @State private var images = imageModels
     
     var body: some View {
         ZStack {
             GeometryReader { outerView in
-                HStack(spacing: 0) { // 设置 Banner 之间的间隙
-                    ForEach(imageModels.indices, id: \.self) { index in
+                HStack(spacing: 0) {
+                    ForEach(images.indices, id: \.self) { index in
                         GeometryReader { innerView in
-                            CardView(image: imageModels[index].image, imageName: imageModels[index].imageName)
-                                // 透明度效果
-//                                .opacity(self.currentIndex == index ? 1.0 : 0.7)
+                            CardView(image: images[index].image, imageName: images[index].imageName, onDelete: {
+                                print("@yl delette index \(index)-\(images[index].image)")
+                                withAnimation {
+                                    images.remove(at: index)
+                                    currentIndex = max(0, min(currentIndex, images.count - 1))
+                                }
+                            })
                         }
-                        .frame(width: outerView.size.width) // 每个 Banner 占屏幕宽度的 75%
+                        .frame(width: outerView.size.width)
                         .onTapGesture {
-//                            self.isShowDetailView = true
+                            print("@yl click index \(index)-\(images[index].image)")
                         }
                     }
                 }
-                .padding(.horizontal, 0) // 确保左右边的部分 Banner 可见
+                .padding(.horizontal, 0)
                 .frame(width: outerView.size.width, alignment: .leading)
-                .offset(x: -CGFloat(self.currentIndex) * (outerView.size.width)) // 根据索引偏移
-                .offset(x: self.dragOffset) // 拖动偏移
+                .offset(x: -CGFloat(self.currentIndex) * (outerView.size.width))
+                .offset(x: self.dragOffset)
                 .gesture(
                     !self.isShowDetailView ?
                     DragGesture()
@@ -54,41 +59,48 @@ struct ContentView: View {
     }
 }
 
-#Preview {
-    ContentView()
-}
-
 
 struct CardView: View {
     let image: String
     let imageName: String
+    let onDelete: () -> Void
     var body: some View {
-        
         ZStack {
-            
             GeometryReader { geometry in
-                
                 Image(image)
                     .resizable()
                     .scaledToFill()
                     .frame(width: geometry.size.width, height: geometry.size.height)
-                
                     .overlay(
                         Text(imageName)
                             .font(.system(.headline, design: .rounded))
                             .fontWeight(.heavy)
                             .padding(10)
-                            .background(Color.white)
                             .padding([.bottom, .leading])
                             .opacity(1.0)
-                            .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .bottomLeading)
+                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
                     )
+                
+                Button(action: {
+                    onDelete()
+                }) {
+                    Image(systemName: "xmark.circle.fill")
+                        .resizable()
+                        .frame(width: 24, height: 24)
+                        .foregroundColor(.white)
+                        .background(Color.black)
+                        .clipShape(Circle())
+                        .shadow(radius: 2)
+                }
+                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topTrailing)
+                .offset(x: -16, y: 16)
             }
+            
         }
     }
 }
 
 
 #Preview {
-    ContentView()
+    BannerView()
 }
