@@ -10,65 +10,47 @@ import SwiftUI
 struct ContentView: View {
     @State private var currentIndex = 0
     @GestureState private var dragOffset: CGFloat = 0
-    @State private var images = imageModels // 动态维护数据源
-    @State private var finalOffset: CGFloat = 0 // 记录滚动的最终偏移量
-
+    @State private var isShowDetailView = false
+    
     var body: some View {
-        GeometryReader { outerView in
-            VStack {
-                // 滑动的图片部分
-                HStack(spacing: 0) {
-                    ForEach(images.indices, id: \.self) { index in
-                        CardView(
-                            image: images[index].image,
-                            imageName: images[index].imageName,
-                            onDelete: {
-                                withAnimation {
-                                    images.remove(at: index)
-                                    currentIndex = max(0, min(currentIndex, images.count - 1))
-                                }
-                            }
-                        )
-                        .frame(width: outerView.size.width)
+        ZStack {
+            GeometryReader { outerView in
+                HStack(spacing: 0) { // 设置 Banner 之间的间隙
+                    ForEach(imageModels.indices, id: \.self) { index in
+                        GeometryReader { innerView in
+                            CardView(image: imageModels[index].image, imageName: imageModels[index].imageName)
+                                // 透明度效果
+//                                .opacity(self.currentIndex == index ? 1.0 : 0.7)
+                        }
+                        .frame(width: outerView.size.width) // 每个 Banner 占屏幕宽度的 75%
+                        .onTapGesture {
+//                            self.isShowDetailView = true
+                        }
                     }
                 }
-                .offset(x: finalOffset + dragOffset) // 总偏移量
+                .padding(.horizontal, 0) // 确保左右边的部分 Banner 可见
+                .frame(width: outerView.size.width, alignment: .leading)
+                .offset(x: -CGFloat(self.currentIndex) * (outerView.size.width)) // 根据索引偏移
+                .offset(x: self.dragOffset) // 拖动偏移
                 .gesture(
+                    !self.isShowDetailView ?
                     DragGesture()
-                        .updating($dragOffset) { value, state, _ in
+                        .updating(self.$dragOffset, body: { value, state, _ in
                             state = value.translation.width
-                        }
+                        })
                         .onEnded { value in
-                            // 滑动结束后的逻辑
-                            let threshold = outerView.size.width / 3 // 滑动触发的阈值
-                            let cardWidth = outerView.size.width
-                            let dragDistance = value.translation.width
-                            
-                            // 判断目标卡片索引
-                            if dragDistance < -threshold {
-                                currentIndex = min(currentIndex + 1, images.count - 1)
-                            } else if dragDistance > threshold {
-                                currentIndex = max(currentIndex - 1, 0)
-                            }
-                            
-                            // 更新最终偏移量
-                            withAnimation(.easeOut(duration: 0.3)) {
-                                finalOffset = -CGFloat(currentIndex) * cardWidth
-                            }
+                            let threshold = outerView.size.width * 0.4
+                            var newIndex = Int(-value.translation.width / threshold) + self.currentIndex
+                            newIndex = min(max(newIndex, 0), imageModels.count - 1)
+                            self.currentIndex = newIndex
                         }
+                    : nil
                 )
-                
-                // 页码指示器
-                HStack(spacing: 8) {
-                    ForEach(images.indices, id: \.self) { index in
-                        Circle()
-                            .fill(currentIndex == index ? Color.blue : Color.gray.opacity(0.5))
-                            .frame(width: 8, height: 8)
-                    }
-                }
-                .padding(.top, 16)
+                .animation(.spring(response: 0.5, dampingFraction: 0.8, blendDuration: 0.3), value: dragOffset)
             }
+            
         }
+        .frame(height: 200)
     }
 }
 
@@ -76,45 +58,37 @@ struct ContentView: View {
     ContentView()
 }
 
+
 struct CardView: View {
     let image: String
     let imageName: String
-    let onDelete: () -> Void
-    
     var body: some View {
+        
         ZStack {
+            
             GeometryReader { geometry in
+                
                 Image(image)
                     .resizable()
                     .scaledToFill()
                     .frame(width: geometry.size.width, height: geometry.size.height)
-                    .clipped()
+                
                     .overlay(
                         Text(imageName)
-                            .font(.system(.title, design: .rounded))
-                            .fontWeight(.bold)
-                            .padding(12)
-                            .background(Color.black.opacity(0.5))
-                            .foregroundColor(.white)
-                            .cornerRadius(10)
-                            .padding([.bottom, .leading], 16)
-                            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                            .font(.system(.headline, design: .rounded))
+                            .fontWeight(.heavy)
+                            .padding(10)
+                            .background(Color.white)
+                            .padding([.bottom, .leading])
+                            .opacity(1.0)
+                            .frame(minWidth: 0, maxWidth: .infinity, minHeight: 0, maxHeight: .infinity, alignment: .bottomLeading)
                     )
-                
-                Button(action: {
-                    onDelete() // 调用删除回调
-                }) {
-                    Image(systemName: "xmark.circle.fill")
-                        .resizable()
-                        .frame(width: 24, height: 24)
-                        .foregroundColor(.white)
-                        .background(Color.black)
-                        .clipShape(Circle())
-                        .shadow(radius: 2)
-                }
-                .frame(width: geometry.size.width, height: geometry.size.height, alignment: .topTrailing)
-                .offset(x: -16, y: 16)
             }
         }
     }
+}
+
+
+#Preview {
+    ContentView()
 }
