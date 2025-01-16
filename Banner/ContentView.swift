@@ -11,61 +11,64 @@ struct ContentView: View {
     @State private var currentIndex = 0
     @GestureState private var dragOffset: CGFloat = 0
     @State private var images = imageModels // 动态维护数据源
-    
+    @State private var finalOffset: CGFloat = 0 // 记录滚动的最终偏移量
+
     var body: some View {
-        ZStack {
-            GeometryReader { outerView in
+        GeometryReader { outerView in
+            VStack {
+                // 滑动的图片部分
                 HStack(spacing: 0) {
                     ForEach(images.indices, id: \.self) { index in
-                        GeometryReader { innerView in
-                            CardView(
-                                image: images[index].image,
-                                imageName: images[index].imageName
-                            ) {
-                                // 删除回调
+                        CardView(
+                            image: images[index].image,
+                            imageName: images[index].imageName,
+                            onDelete: {
                                 withAnimation {
                                     images.remove(at: index)
                                     currentIndex = max(0, min(currentIndex, images.count - 1))
                                 }
                             }
-                            .opacity(self.currentIndex == index ? 1.0 : 0.75)
-                        }
+                        )
                         .frame(width: outerView.size.width)
                     }
                 }
-                .frame(width: outerView.size.width, alignment: .leading)
-                .offset(x: -CGFloat(self.currentIndex) * outerView.size.width)
-                .offset(x: self.dragOffset)
+                .offset(x: finalOffset + dragOffset) // 总偏移量
                 .gesture(
                     DragGesture()
-                        .updating(self.$dragOffset, body: { value, state, _ in
+                        .updating($dragOffset) { value, state, _ in
                             state = value.translation.width
-                        })
+                        }
                         .onEnded { value in
-                            let threshold = outerView.size.width * 0.3
-                            var newIndex = Int(-value.translation.width / threshold) + self.currentIndex
-                            newIndex = min(max(newIndex, 0), images.count - 1)
-                            withAnimation {
-                                self.currentIndex = newIndex
+                            // 滑动结束后的逻辑
+                            let threshold = outerView.size.width / 3 // 滑动触发的阈值
+                            let cardWidth = outerView.size.width
+                            let dragDistance = value.translation.width
+                            
+                            // 判断目标卡片索引
+                            if dragDistance < -threshold {
+                                currentIndex = min(currentIndex + 1, images.count - 1)
+                            } else if dragDistance > threshold {
+                                currentIndex = max(currentIndex - 1, 0)
+                            }
+                            
+                            // 更新最终偏移量
+                            withAnimation(.easeOut(duration: 0.3)) {
+                                finalOffset = -CGFloat(currentIndex) * cardWidth
                             }
                         }
                 )
-            }
-
-            VStack {
-                Spacer()
+                
+                // 页码指示器
                 HStack(spacing: 8) {
                     ForEach(images.indices, id: \.self) { index in
                         Circle()
                             .fill(currentIndex == index ? Color.blue : Color.gray.opacity(0.5))
                             .frame(width: 8, height: 8)
-                            .animation(.easeInOut, value: currentIndex)
                     }
                 }
-                .padding(.bottom, 20)
+                .padding(.top, 16)
             }
         }
-        .frame(height: 200)
     }
 }
 
